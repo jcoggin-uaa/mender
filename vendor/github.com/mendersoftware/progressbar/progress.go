@@ -48,7 +48,7 @@ func New(size int64) *Bar {
 		}
 	} else {
 		return &Bar{
-			Renderer: &NoTTYRenderer{
+			Renderer: &IwNoTTYRenderer{
 				Out:            os.Stderr,
 				ProgressMarker: ".",
 				terminalWidth:  70,
@@ -146,5 +146,43 @@ func (p *NoTTYRenderer) Render(percentage int) {
 		}
 		p.lastNumberOfDots += numberOfDots
 		fmt.Fprintf(p.Out, str)
+	}
+}
+
+type IwNoTTYRenderer struct {
+	Out            io.Writer // Output device
+	ProgressMarker string
+	lastPercentage int
+	terminalWidth  int
+}
+
+func (p *IwNoTTYRenderer) Render(percentage int) {
+	if percentage <= p.lastPercentage {
+		return
+	}
+	suffix := fmt.Sprintf(" %3d%%", percentage)
+	widthAvailable := p.terminalWidth - len(suffix)
+	number_of_dots := int((float64(widthAvailable) * float64(percentage)) / 100)
+	number_of_fillers := widthAvailable - number_of_dots
+	if percentage > 100 {
+		number_of_dots = widthAvailable
+		number_of_fillers = 0
+	}
+	if percentage < 0 {
+		return
+	}
+	if number_of_dots < 0 {
+		return
+	}
+	if number_of_fillers < 0 {
+		return
+	}
+	p.lastPercentage = percentage
+	fmt.Fprintf(p.Out, "%s%s%s\n",
+		strings.Repeat(p.ProgressMarker, number_of_dots),
+		strings.Repeat(" ", number_of_fillers),
+		suffix)
+	if percentage == 100 {
+		fmt.Fprintln(p.Out)
 	}
 }
